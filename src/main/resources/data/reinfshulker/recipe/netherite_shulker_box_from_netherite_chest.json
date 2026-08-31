@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["S", "C", "S"],
+  "key": {
+    "C": "reinfchest:netherite_chest",
+    "S": "minecraft:shulker_shell"
+  },
+  "result": {
+    "count": 1,
+    "id": "reinfshulker:netherite_shulker_box"
+  }
+}

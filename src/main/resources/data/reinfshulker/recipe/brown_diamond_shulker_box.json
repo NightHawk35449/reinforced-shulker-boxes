@@ -1,0 +1,13 @@
+{
+  "type": "reinfshulker:crafting_special_reinforcedshulkerbox",
+  "category": "misc",
+  "pattern": ["MMM", "MSM", "MMM"],
+  "key": {
+    "M": "minecraft:diamond",
+    "S": "reinfshulker:brown_gold_shulker_box"
+  },
+  "result": {
+    "count": 1,
+    "id": "reinfshulker:brown_diamond_shulker_box"
+  }
+}

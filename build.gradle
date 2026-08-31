@@ -1,0 +1,265 @@
+plugins {
+	id "net.fabricmc.fabric-loom" version "${loom_version}"
+	id "maven-publish"
+	id "com.modrinth.minotaur" version "2.+"
+	id 'checkstyle'
+	id "com.diffplug.spotless" version "8.2.1"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	// Add repositories to retrieve artifacts from in here.
+	// You should only use this when depending on other mods because
+	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
+	// for more information about repositories.
+
+	// LOCAL FALLBACK for reinforced-core / reinforced-chests 26.1.2 builds.
+	// CONFIRMED (queried directly): as of this port, the author's public
+	// Maven feed at https://raw.githubusercontent.com/Aton-Kish/mcmod/maven
+	// (declared below, unchanged) only has 4.0.9+1.21.11 /
+	// 4.0.0-beta+1.21.11 published -- the 26.1.2 builds you supplied as
+	// jars are not yet published there. This is NOT a "create a libs
+	// folder just because Gradle can't resolve something" workaround: the
+	// artifacts genuinely don't exist yet at that remote coordinate. Once
+	// the author publishes atonkish.reinfcore:reinforced-core:4.0.9+26.1.2
+	// (and the reinfchest equivalent) to the real feed, this flatDir block
+	// and the libs/ folder can be deleted and dependency resolution will
+	// fall through to the maven{} block below unchanged.
+	flatDir {
+		dirs "libs"
+	}
+
+	// Reinforced Storage
+	maven {
+		url = "https://raw.githubusercontent.com/Aton-Kish/mcmod/maven"
+	}
+
+	// ModMenu (Reinforced Core deps)
+	maven {
+		url = "https://maven.terraformersmc.com/releases/"
+	}
+
+	// Cloth Config (Reinforced Core deps)
+	maven {
+		url = "https://maven.shedaniel.me/"
+	}
+
+	// Shulker Box Tooltip
+	maven {
+		url = "https://maven.misterpemodder.com/libs-release"
+	}
+
+	// // Quick Shulker
+	// maven {
+	// 	url = "https://maven.kyrptonaught.dev"
+	// }
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"reinfshulker" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+
+	runs {
+		serverTest {
+			server()
+			ideConfigGenerated true
+			name "Minecraft Server Test"
+			vmArg "-Dfabric-api.gametest"
+			vmArg "-Dfabric-api.gametest.report-file=${project.buildDir}/gametest/junit.xml"
+			vmArg "-Datonkish.reinfshulker.gametest"
+			runDir "build/gametest"
+		}
+
+		clientTest {
+			client()
+			ideConfigGenerated true
+			name "Minecraft Client Test"
+			vmArg "-Datonkish.reinfshulker.gametest"
+			runDir "build/gametest"
+		}
+	}
+
+	accessWidenerPath = file("src/main/resources/${project.mod_id}.accesswidener")
+}
+
+dependencies {
+	// To change the versions see the gradle.properties file
+	// NOTE: Minecraft 26.1+ ships unobfuscated with official Mojang mappings.
+	// Loom no longer needs (or supports) a "mappings" dependency, and mod
+	// dependencies use plain implementation/compileOnly instead of
+	// modImplementation/modCompileOnly, since there is nothing left to remap.
+	// Evidence: https://fabricmc.net/2026/03/14/261.html ,
+	// https://docs.fabricmc.net/26.1/develop/porting/
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+	// Fabric API. This is technically optional, but you probably want it anyway.
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+	// Reinforced Core
+	implementation "atonkish.reinfcore:reinforced-core:${project.reinforced_core_version}"
+	include "atonkish.reinfcore:reinforced-core:${project.reinforced_core_version}"
+
+	// Reinforced Chests
+	implementation "atonkish.reinfchest:reinforced-chests:${project.reinforced_chests_version}"
+
+	// Shulker Box Tooltip
+	implementation "com.misterpemodder:shulkerboxtooltip-fabric:${project.shulker_box_tooltip_version}"
+
+	// // Quick Shulker
+	// implementation "net.kyrptonaught:quickshulker:${project.quick_shulker_version}"
+	// // Quick Shulker deps
+	// implementation "net.kyrptonaught:shulkerutils:${project.shulkerutils_version}"
+}
+
+processResources {
+	inputs.property "version", project.version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": inputs.properties.version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	// Minecraft 26.1 (26.1.2) requires Java 25.
+	it.options.release = 25
+}
+
+java {
+	// On unobfuscated Minecraft (26.1+), Loom no longer remaps the jar, so the
+	// sources jar is attached directly instead of through a RemapSourcesJar task.
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	from("LICENSE") {
+		rename { "${it}_${inputs.properties.archivesName}"}
+	}
+}
+
+// configure the maven publication
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			artifactId = project.archives_base_name
+			from components.java
+		}
+	}
+
+	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+	repositories {
+		// Add repositories to publish to here.
+		// Notice: This block does NOT have the same function as the block in the top level.
+		// The repositories here will be used for publishing your artifact, not for
+		// retrieving dependencies.
+		maven {
+			url = "file://${buildDir}/maven"
+		}
+	}
+}
+
+checkstyle {
+	toolVersion = "13.0.0"
+	configFile = file("${rootProject.projectDir}/checkstyle.xml")
+
+	configProperties = [
+		'org.checkstyle.google.severity': 'error'
+	]
+}
+
+spotless {
+	format 'misc', {
+		target '*.gradle', 'gradle.properties'
+
+		trimTrailingWhitespace()
+		leadingSpacesToTabs()
+		endWithNewline()
+	}
+
+	java {
+		googleJavaFormat()
+		importOrder(
+			'java',
+			'javax',
+			'org.slf4j',
+			'com.mojang',
+			'net.minecraft',
+			'net.fabricmc',
+			'org.spongepowered',
+			'',
+			'atonkish'
+		)
+		removeUnusedImports()
+		formatAnnotations()
+		trimTrailingWhitespace()
+		endWithNewline()
+	}
+}
+
+task curseforge(type: Exec) {
+	environment "CURSEFORGE_API_TOKEN", project.findProperty("curseforge_token") ?: "Missing token"
+	commandLine "sh", "-c", """
+		set -eux
+
+		# install
+		MCMOD_RELEASER_VERSION="0.1.1"
+		curl -sL https://github.com/Aton-Kish/mcmod-releaser/releases/download/v\${MCMOD_RELEASER_VERSION}/mcmod-releaser_\${MCMOD_RELEASER_VERSION}_linux_amd64.tar.gz | tar xzf - mcmod-releaser
+		./mcmod-releaser --version
+
+		# release
+		./mcmod-releaser curseforge \
+			--file "build/libs/${project.archives_base_name}-${project.version}.jar" \
+			--project-id "${project.curseforge_id}" \
+			--release-type "beta" \
+			--version "${project.version}" \
+			--name "Reinforced Shulker Boxes v${project.version}" \
+			--changelog "[v${project.version}](https://github.com/Aton-Kish/reinforced-shulker-boxes/releases/tag/v${java.net.URLEncoder.encode(project.version, "UTF-8")})" \
+			--environments "Client,Server" \
+			--loaders "Fabric" \
+			--java-versions "Java 25" \
+			--game-versions "26.1.2" \
+			--dependencies "fabric-api=required,cloth-config=embedded,modmenu=optional,shulkerboxtooltip=optional,reinforced-chests=optional"
+	"""
+}
+
+modrinth {
+	token = project.findProperty("modrinth_token") ?: "Missing token"
+
+	projectId = project.modrinth_id
+
+	// On unobfuscated Minecraft (26.1+) there is no remapJar task; upload the
+	// plain jar task output instead.
+	uploadFile = jar
+	versionNumber = project.version
+	versionName = "Reinforced Shulker Boxes v${project.version}"
+	versionType = "beta"
+	changelog = "[v${project.version}](https://github.com/Aton-Kish/reinforced-shulker-boxes/releases/tag/v" + java.net.URLEncoder.encode(project.version, "UTF-8") + ")"
+
+	gameVersions = ["26.1.2"]
+	loaders = ["fabric"]
+
+	dependencies {
+		required.project "fabric-api"
+		embedded.project "cloth-config"
+		optional.project "modmenu"
+		optional.project "shulkerboxtooltip"
+		// optional.project "quickshulker"
+		optional.project "reinforced-chests"
+	}
+}

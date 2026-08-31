@@ -1,0 +1,26 @@
+accessWidener v2 official
+
+# CONFIRMED: identical entry shipped in reinforced-chests-4.0.9+26.1.2.jar's
+# reinfchest.accesswidener, needed by the equivalent
+# ItemStackComponentizationFixMixin (fixBlockEntityTag override) that
+# reinforced-shulker-boxes also uses.
+accessible class net/minecraft/util/datafix/fixes/ItemStackComponentizationFix$ItemStackData
+
+# CROSS-REFERENCED against EkagraTheBeast/reinforced-shulker-boxes@26.2,
+# which discovered (via reflection, not an access widener) that cauldron
+# interaction registration now goes through a private
+# CauldronInteraction.Dispatcher.put(Item, CauldronInteraction) method
+# instead of the old 1.21.11 public
+# CauldronBehavior.WATER_CAULDRON_BEHAVIOR.put(...) map. Rather than copy
+# their reflection-based workaround, this port widens the method directly
+# -- consistent with how this project already solves every other
+# visibility problem. CONFIRMED against the actual 26.1.2 jar and verified
+# in-game (cauldron undyeing works correctly).
+accessible method net/minecraft/core/cauldron/CauldronInteraction$Dispatcher put (Lnet/minecraft/world/item/Item;Lnet/minecraft/core/cauldron/CauldronInteraction;)V
+
+# NOTE: the old 1.21.11 accesswidener also widened
+#   accessible class net/minecraft/block/entity/BlockEntityType$BlockEntityFactory
+# This is no longer needed: like reinforced-chests and reinforced-barrels'
+# 26.1.2 ports, ModBlockEntityType below has been switched from the old
+# BlockEntityTypeInvoker (@Invoker into BlockEntityType.create) to Fabric
+# API's FabricBlockEntityTypeBuilder, which needs no access widening.
